@@ -4,24 +4,33 @@ from torch.distributions import Normal
 
 
 class ActorCritic(nn.Module):
-    def __init__(self, obs_dim: int, act_dim: int, hidden_dim: int = 64):
+    def __init__(
+        self,
+        obs_dim: int,
+        act_dim: int,
+        hidden_dim: int = 64,
+        hidden_layers: tuple[int, ...] | None = None,
+    ):
         super().__init__()
 
-        self.actor = nn.Sequential(
-            nn.Linear(obs_dim, hidden_dim),
-            nn.Tanh(),
-            nn.Linear(hidden_dim, hidden_dim),
-            nn.Tanh(),
-            nn.Linear(hidden_dim, act_dim),
-        )
-        self.critic = nn.Sequential(
-            nn.Linear(obs_dim, hidden_dim),
-            nn.Tanh(),
-            nn.Linear(hidden_dim, hidden_dim),
-            nn.Tanh(),
-            nn.Linear(hidden_dim, 1),
-        )
+        if hidden_layers is None:
+            hidden_layers = (hidden_dim, hidden_dim)
+
+        self.hidden_layers = tuple(hidden_layers)
+        self.actor = self._build_mlp(obs_dim, act_dim, self.hidden_layers)
+        self.critic = self._build_mlp(obs_dim, 1, self.hidden_layers)
         self.log_std = nn.Parameter(torch.zeros(act_dim))
+
+    @staticmethod
+    def _build_mlp(input_dim, output_dim, hidden_layers):
+        layers = []
+        last_dim = input_dim
+        for hidden_dim in hidden_layers:
+            layers.append(nn.Linear(last_dim, hidden_dim))
+            layers.append(nn.Tanh())
+            last_dim = hidden_dim
+        layers.append(nn.Linear(last_dim, output_dim))
+        return nn.Sequential(*layers)
 
     def distribution(self, obs):
         mean = self.actor(obs)

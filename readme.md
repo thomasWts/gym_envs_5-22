@@ -2,10 +2,15 @@
 
 这是一个基于 **MuJoCo + Gymnasium + PyTorch** 的强化学习入门项目。
 
-当前包含两个 reach 任务：
+当前包含六个入门任务：
 
 - `CartReachEnv`：小车只能沿 x 方向运动，控制水平力到达绿色目标点；
-- `BlockReach3DEnv`：物块可以沿 x/y/z 三个方向运动，控制三维力到达绿色目标点。
+- `BlockReach3DEnv`：物块可以沿 x/y/z 三个方向运动，控制三维力到达绿色目标点；
+- `CartPoleBalanceEnv`：小车杆从接近倒立位置开始，控制小车水平力让杆保持竖直向上；
+- `CartPoleRecoverEnv`：小车杆从更大的角度扰动开始，先恢复到倒立附近，再保持平衡。
+- `CartPoleWideRecoverEnv`：小车杆从约 ±60 度扰动开始，进一步提高恢复难度。
+- `CartPoleSwingUpEnv`：小车杆从下方开始，通过左右推小车把杆子甩到上方并保持。
+- `CartPoleFinalEnv`：最终测试任务，从下方甩上去后，让小球回到世界中心并连续停留 2 秒。
 
 这个项目的目的不是追求复杂任务，而是建立一个标准的 MuJoCo RL 项目结构：
 
@@ -25,18 +30,43 @@ mujoco/
 │   └── ppo_agent.py             # PyTorch Actor-Critic 网络
 ├── envs/
 │   ├── cart_reach_env.py        # 1D 小车 reach 环境
-│   └── block_reach_3d_env.py    # 3D 物块 reach 环境
+│   ├── block_reach_3d_env.py    # 3D 物块 reach 环境
+│   ├── cart_pole_balance_env.py # 小车杆倒立平衡环境
+│   ├── cart_pole_recover_env.py # 小车杆恢复平衡环境
+│   ├── cart_pole_wide_recover_env.py
+│   ├── cart_pole_swing_up_env.py
+│   └── cart_pole_final_env.py
 ├── models/
 │   ├── cart_reach.xml           # 1D 小车 MuJoCo 模型
-│   └── block_reach_3d.xml       # 3D 物块 MuJoCo 模型
+│   ├── block_reach_3d.xml       # 3D 物块 MuJoCo 模型
+│   └── cart_pole_balance.xml    # 小车杆 MuJoCo 模型
+├── training/
+│   ├── __init__.py
+│   └── checkpoints.py           # checkpoint 加载工具
 ├── scripts/
 │   ├── train_cart_reach_ppo.py
 │   ├── render_cart_reach_ppo.py
 │   ├── train_block_reach_3d_ppo.py
-│   └── render_block_reach_3d_ppo.py
+│   ├── render_block_reach_3d_ppo.py
+│   ├── train_cart_pole_balance_ppo.py
+│   ├── render_cart_pole_balance_ppo.py
+│   ├── train_cart_pole_recover_ppo.py
+│   ├── render_cart_pole_recover_ppo.py
+│   ├── train_cart_pole_wide_recover_ppo.py
+│   ├── render_cart_pole_wide_recover_ppo.py
+│   ├── train_cart_pole_swing_up_ppo.py
+│   ├── render_cart_pole_swing_up_ppo.py
+│   ├── train_cart_pole_final_ppo.py
+│   ├── render_cart_pole_final_ppo.py
+│   └── eval_cart_pole_final.py
 ├── checkpoints/
 │   ├── ppo_cart_reach_torch.pt
-│   └── ppo_block_reach_3d_torch.pt
+│   ├── ppo_block_reach_3d_torch.pt
+│   ├── ppo_cart_pole_balance_torch.pt
+│   ├── ppo_cart_pole_recover_torch.pt
+│   ├── ppo_cart_pole_wide_recover_torch.pt
+│   ├── ppo_cart_pole_swing_up_torch.pt
+│   └── ppo_cart_pole_final_torch.pt
 ├── logs/
 ├── README.md
 └── .gitignore
@@ -105,6 +135,11 @@ python -c "import mujoco; print(mujoco.__version__)"
 ```python
 CartReachEnv
 BlockReach3DEnv
+CartPoleBalanceEnv
+CartPoleRecoverEnv
+CartPoleWideRecoverEnv
+CartPoleSwingUpEnv
+CartPoleFinalEnv
 ```
 
 任务目标：
@@ -128,6 +163,104 @@ force = force_limit * action
 ```
 
 其中 `action` 每一维都在 `[-1, 1]`。
+
+小车杆平衡任务中，杆子从接近竖直向上开始：
+
+```text
+theta = pi 表示杆子竖直向上
+action = [-1, 1] 的一维连续动作
+force = 30.0 * action
+```
+
+这个任务先练“倒立平衡”，比从下方开始的 swing-up 更容易训练稳定。
+
+小车杆恢复任务中，杆子初始扰动更大：
+
+```text
+CartPoleBalanceEnv: 初始角度约 ±3.4 度
+CartPoleRecoverEnv: 初始角度约 ±25 度，并带更大初始角速度
+CartPoleWideRecoverEnv: 初始角度约 ±60 度，进一步接近 swing-up 难度
+CartPoleSwingUpEnv: 从下方 theta≈0 开始，完整 swing-up
+CartPoleFinalEnv: 从下方开始，甩上去后要求小球在世界中心附近连续停留 2 秒
+```
+
+它适合作为从 balance 过渡到完整 swing-up 之前的下一档难度。
+
+推荐训练顺序：
+
+```bash
+python scripts/train_cart_pole_balance_ppo.py
+python scripts/train_cart_pole_recover_ppo.py
+python scripts/train_cart_pole_wide_recover_ppo.py
+python scripts/train_cart_pole_swing_up_ppo.py
+python scripts/train_cart_pole_final_ppo.py
+```
+
+`train_cart_pole_recover_ppo.py` 默认会从下面这个较简单难度的模型初始化：
+
+```text
+checkpoints/ppo_cart_pole_balance_torch.pt
+```
+
+`train_cart_pole_wide_recover_ppo.py` 默认会从下面这个模型初始化：
+
+```text
+checkpoints/ppo_cart_pole_recover_torch.pt
+```
+
+`train_cart_pole_swing_up_ppo.py` 默认会从下面这个模型初始化：
+
+```text
+checkpoints/ppo_cart_pole_wide_recover_torch.pt
+```
+
+`train_cart_pole_final_ppo.py` 默认会从下面这个模型初始化：
+
+```text
+checkpoints/ppo_cart_pole_swing_up_torch.pt
+```
+
+如果你想强制从随机策略开始训练 recover 任务：
+
+```bash
+python scripts/train_cart_pole_recover_ppo.py --no-init-from
+```
+
+如果你想指定其他 checkpoint 作为起点：
+
+```bash
+python scripts/train_cart_pole_recover_ppo.py --init-from checkpoints/your_model.pt
+```
+
+wide recover 也支持同样的参数：
+
+```bash
+python scripts/train_cart_pole_wide_recover_ppo.py --no-init-from
+python scripts/train_cart_pole_wide_recover_ppo.py --init-from checkpoints/your_model.pt
+```
+
+swing-up 也支持同样的参数：
+
+```bash
+python scripts/train_cart_pole_swing_up_ppo.py --no-init-from
+python scripts/train_cart_pole_swing_up_ppo.py --init-from checkpoints/your_model.pt
+```
+
+final 任务也支持同样的参数：
+
+```bash
+python scripts/train_cart_pole_final_ppo.py --no-init-from
+python scripts/train_cart_pole_final_ppo.py --init-from checkpoints/your_model.pt
+```
+
+网络规模说明：
+
+```text
+前几档简单任务默认使用 64-64 MLP。
+swing-up 和 final 任务默认使用 128-128-128 MLP。
+```
+
+如果用小网络 checkpoint 初始化大网络，脚本会自动加载形状兼容的参数，其余新层保持随机初始化。
 
 ---
 
@@ -498,6 +631,11 @@ MuJoCo XML
 ```bash
 python scripts/train_cart_reach_ppo.py
 python scripts/train_block_reach_3d_ppo.py
+python scripts/train_cart_pole_balance_ppo.py
+python scripts/train_cart_pole_recover_ppo.py
+python scripts/train_cart_pole_wide_recover_ppo.py
+python scripts/train_cart_pole_swing_up_ppo.py
+python scripts/train_cart_pole_final_ppo.py
 ```
 
 展示：
@@ -505,6 +643,23 @@ python scripts/train_block_reach_3d_ppo.py
 ```bash
 python scripts/render_cart_reach_ppo.py
 python scripts/render_block_reach_3d_ppo.py
+python scripts/render_cart_pole_balance_ppo.py
+python scripts/render_cart_pole_recover_ppo.py
+python scripts/render_cart_pole_wide_recover_ppo.py
+python scripts/render_cart_pole_swing_up_ppo.py
+python scripts/render_cart_pole_final_ppo.py
+```
+
+评估最终模型：
+
+```bash
+python scripts/eval_cart_pole_final.py --episodes 20
+```
+
+保存逐回合评估结果：
+
+```bash
+python scripts/eval_cart_pole_final.py --episodes 50 --csv logs/final_eval.csv
 ```
 
 检查 MuJoCo：

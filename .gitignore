@@ -4,4 +4,5 @@ __pycache__/
 
 logs/
 checkpoints/*.pt
-
+MUJOCO_LOG.TXT
+*.csv
