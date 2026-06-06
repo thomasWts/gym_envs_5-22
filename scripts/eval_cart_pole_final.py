@@ -139,7 +139,7 @@ def main():
     if not args.model.exists():
         raise FileNotFoundError(
             f"Model file not found: {args.model}. "
-            "Run scripts/train_cart_pole_final_ppo.py first."
+            "Run: python scripts/train.py --task cart_pole_final"
         )
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")

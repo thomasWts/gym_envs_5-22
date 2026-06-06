@@ -5,6 +5,10 @@ from .cart_pole_recover_env import CartPoleRecoverEnv
 from .cart_pole_swing_up_env import CartPoleSwingUpEnv
 from .cart_pole_wide_recover_env import CartPoleWideRecoverEnv
 from .cart_reach_env import CartReachEnv
+from .franka_panda_reach_env import FrankaPandaReachEnv
+from .two_link_arm_gripper_ball_reach_env import TwoLinkArmGripperBallReachEnv
+from .two_link_arm_random_reach_env import TwoLinkArmRandomReachEnv
+from .two_link_arm_reach_env import TwoLinkArmReachEnv
 
 __all__ = [
     "BlockReach3DEnv",
@@ -14,4 +18,8 @@ __all__ = [
     "CartPoleSwingUpEnv",
     "CartPoleWideRecoverEnv",
     "CartReachEnv",
+    "FrankaPandaReachEnv",
+    "TwoLinkArmGripperBallReachEnv",
+    "TwoLinkArmRandomReachEnv",
+    "TwoLinkArmReachEnv",
 ]

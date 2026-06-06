@@ -41,6 +41,7 @@ class CartReachEnv(gym.Env):
         self.force_limit = 10.0
         self.x_limit = 0.78
         self.target_x = 0.0
+        self.previous_abs_error = 0.0
         self.step_count = 0
 
         self.cart_joint_id = mujoco.mj_name2id(
@@ -93,6 +94,7 @@ class CartReachEnv(gym.Env):
         self._sync_target_site()
 
         mujoco.mj_forward(self.model, self.data)
+        self.previous_abs_error = abs(self.target_x - float(self.data.qpos[self.cart_qpos_id]))
 
         obs = self._get_obs()
         info = self._get_info(force=0.0, success=False)
@@ -117,24 +119,33 @@ class CartReachEnv(gym.Env):
         x = float(self.data.qpos[self.cart_qpos_id])
         x_dot = float(self.data.qvel[self.cart_dof_id])
         error = self.target_x - x
+        abs_error = abs(error)
+        progress = self.previous_abs_error - abs_error
 
-        reward = 1.0
-        reward -= 8.0 * error**2
-        reward -= 0.10 * x_dot**2
+        reward = -6.0 * abs_error
+        reward += 12.0 * progress
+        reward -= 0.05 * x_dot**2
         reward -= 0.001 * force**2
 
-        success = abs(error) < 0.03 and abs(x_dot) < 0.20
+        if 0.04 <= abs_error < 0.08 and abs(progress) < 0.0005:
+            reward -= 0.20
+
+        self.previous_abs_error = abs_error
+
+        success = abs_error < 0.04 and abs(x_dot) < 0.35
         out_of_bounds = abs(x) > self.x_limit
 
         terminated = False
         if success:
-            reward += 10.0
+            reward += 20.0
             terminated = True
         elif out_of_bounds:
             reward -= 20.0
             terminated = True
 
         truncated = self.step_count >= self.max_episode_steps
+        if truncated and not success:
+            reward -= 5.0
 
         obs = self._get_obs()
         info = self._get_info(force=force, success=success)
